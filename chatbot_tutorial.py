@@ -3,6 +3,7 @@
 """
 Chatbot Tutorial
 ================
+stolen from: https://github.com/pytorch/tutorials/blob/master/beginner_source/chatbot_tutorial.py
 **Author:** `Matthew Inkawhich <https://github.com/MatthewInkawhich>`_
 """
 
