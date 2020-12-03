@@ -137,12 +137,10 @@ def train(
     max_target_len,
     encoder,
     decoder,
-    embedding,
     encoder_optimizer,
     decoder_optimizer,
     batch_size,
     clip,
-    max_length=MAX_LENGTH,
     teacher_forcing_ratio=1.0,
 ):
 
@@ -236,21 +234,16 @@ def trainIters(
     checkpoint=None,
 ):
 
-    # Load batches for each iteration
     training_batches = [
         batch2TrainData(voc, [random.choice(pairs) for _ in range(batch_size)])
         for _ in range(n_iteration)
     ]
 
-    # Initializations
-    print("Initializing ...")
     start_iteration = 1
     print_loss = 0
     if checkpoint:
         start_iteration = checkpoint.iteration + 1  # TODO(tilo): WTF!
 
-    # Training loop
-    print("Training...")
     for iteration in range(start_iteration, n_iteration + 1):
         training_batch = training_batches[iteration - 1]
         # Extract fields from batch
@@ -265,7 +258,6 @@ def trainIters(
             max_target_len,
             encoder,
             decoder,
-            embedding,
             encoder_optimizer,
             decoder_optimizer,
             batch_size,
@@ -318,7 +310,6 @@ def main():
 
     # Set checkpoint to load from; set to None if starting from scratch
     loadFilename = None
-    checkpoint_iter = 4000
 
     decoder, embedding, encoder = build_model(
         attn_model, decoder_n_layers, dropout, encoder_n_layers, hidden_size
