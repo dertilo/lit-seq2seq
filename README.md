@@ -11,7 +11,6 @@ pytorch lightning seq2seq
 ```shell script
 conda env create -f environment.yml
 wget http://www.cs.cornell.edu/~cristian/data/cornell_movie_dialogs_corpus.zip
-cd lit-seq2seq && mkdir data
-mv cornell\ movie-dialogs\ corpus data/
+unzip cornell_movie_dialogs_corpus.zip -d data
 ```
 * google colab
