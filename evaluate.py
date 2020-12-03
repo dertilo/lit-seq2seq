@@ -1,7 +1,8 @@
 import torch
 
-from chatbot_tutorial import GreedySearchDecoder, encoder, decoder, indexesFromSentence, \
+from chatbot_tutorial import indexesFromSentence, \
     device
+from models import GreedySearchDecoder
 # Set dropout layers to eval mode
 from load_preprocess_data import MAX_LENGTH, normalizeString
 
