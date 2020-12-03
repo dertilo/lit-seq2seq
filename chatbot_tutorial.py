@@ -22,18 +22,25 @@ import random
 import os
 import itertools
 
-from load_preprocess_data import write_formatted_data, loadPrepareData, trimRareWords, \
-    PAD_token, EOS_token, MAX_LENGTH, SOS_token
+from load_preprocess_data import (
+    write_formatted_data,
+    loadPrepareData,
+    trimRareWords,
+    PAD_token,
+    EOS_token,
+    MAX_LENGTH,
+    SOS_token,
+)
 from models import EncoderRNN, LuongAttnDecoderRNN
 
 USE_CUDA = torch.cuda.is_available()
 device = torch.device("cuda" if USE_CUDA else "cpu")
 
 corpus_name = "cornell movie-dialogs corpus"
-data_dir = os.environ.get('DATA_DIR',"data")
+data_dir = os.environ.get("DATA_DIR", "data")
 corpus = os.path.join(data_dir, corpus_name)
 datafile = os.path.join(corpus, "formatted_movie_lines.txt")
-write_formatted_data(corpus,datafile)
+write_formatted_data(corpus, datafile)
 
 # Load/Assemble voc and pairs
 save_dir = os.path.join("data", "save")
@@ -41,7 +48,7 @@ voc, pairs = loadPrepareData(corpus, corpus_name, datafile, save_dir)
 
 
 # Trim voc and pairs
-MIN_COUNT = 3    # Minimum word count threshold for trimming
+MIN_COUNT = 3  # Minimum word count threshold for trimming
 pairs = trimRareWords(voc, pairs, MIN_COUNT)
 
 
@@ -49,12 +56,14 @@ pairs = trimRareWords(voc, pairs, MIN_COUNT)
 # Prepare Data for Models
 # -----------------------
 
+
 def indexesFromSentence(voc, sentence):
-    return [voc.word2index[word] for word in sentence.split(' ')] + [EOS_token]
+    return [voc.word2index[word] for word in sentence.split(" ")] + [EOS_token]
 
 
 def zeroPadding(l, fillvalue=PAD_token):
     return list(itertools.zip_longest(*l, fillvalue=fillvalue))
+
 
 def binaryMatrix(l, value=PAD_token):
     m = []
@@ -67,6 +76,7 @@ def binaryMatrix(l, value=PAD_token):
                 m[i].append(1)
     return m
 
+
 # Returns padded input sequence tensor and lengths
 def inputVar(l, voc):
     indexes_batch = [indexesFromSentence(voc, sentence) for sentence in l]
@@ -74,6 +84,7 @@ def inputVar(l, voc):
     padList = zeroPadding(indexes_batch)
     padVar = torch.LongTensor(padList)
     return padVar, lengths
+
 
 # Returns padded target sequence tensor, padding mask, and max target length
 def outputVar(l, voc):
@@ -84,6 +95,7 @@ def outputVar(l, voc):
     mask = torch.BoolTensor(mask)
     padVar = torch.LongTensor(padList)
     return padVar, mask, max_target_len
+
 
 # Returns all items for a given batch of pairs
 def batch2TrainData(voc, pair_batch):
@@ -117,10 +129,22 @@ def maskNLLLoss(inp, target, mask):
     return loss, nTotal.item()
 
 
-def train(input_variable, lengths, target_variable, mask, max_target_len, encoder, decoder, embedding,
-          encoder_optimizer, decoder_optimizer, batch_size, clip, max_length=MAX_LENGTH,
-          teacher_forcing_ratio=1.0
-          ):
+def train(
+    input_variable,
+    lengths,
+    target_variable,
+    mask,
+    max_target_len,
+    encoder,
+    decoder,
+    embedding,
+    encoder_optimizer,
+    decoder_optimizer,
+    batch_size,
+    clip,
+    max_length=MAX_LENGTH,
+    teacher_forcing_ratio=1.0,
+):
 
     # Zero gradients
     encoder_optimizer.zero_grad()
@@ -146,7 +170,7 @@ def train(input_variable, lengths, target_variable, mask, max_target_len, encode
     decoder_input = decoder_input.to(device)
 
     # Set initial decoder hidden state to the encoder's final hidden state
-    decoder_hidden = encoder_hidden[:decoder.n_layers]
+    decoder_hidden = encoder_hidden[: decoder.n_layers]
 
     # Determine if we are using teacher forcing this iteration
     use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
@@ -193,22 +217,37 @@ def train(input_variable, lengths, target_variable, mask, max_target_len, encode
     return sum(print_losses) / n_totals
 
 
-
-def trainIters(model_name, voc, pairs, encoder, decoder, encoder_optimizer, decoder_optimizer, embedding,
-               save_dir, n_iteration, batch_size, print_every, save_every, clip, corpus_name,
-               checkpoint=None
-               ):
+def trainIters(
+    model_name,
+    voc,
+    pairs,
+    encoder,
+    decoder,
+    encoder_optimizer,
+    decoder_optimizer,
+    embedding,
+    save_dir,
+    n_iteration,
+    batch_size,
+    print_every,
+    save_every,
+    clip,
+    corpus_name,
+    checkpoint=None,
+):
 
     # Load batches for each iteration
-    training_batches = [batch2TrainData(voc, [random.choice(pairs) for _ in range(batch_size)])
-                      for _ in range(n_iteration)]
+    training_batches = [
+        batch2TrainData(voc, [random.choice(pairs) for _ in range(batch_size)])
+        for _ in range(n_iteration)
+    ]
 
     # Initializations
-    print('Initializing ...')
+    print("Initializing ...")
     start_iteration = 1
     print_loss = 0
     if checkpoint:
-        start_iteration = checkpoint.iteration + 1 #TODO(tilo): WTF!
+        start_iteration = checkpoint.iteration + 1  # TODO(tilo): WTF!
 
     # Training loop
     print("Training...")
@@ -218,40 +257,59 @@ def trainIters(model_name, voc, pairs, encoder, decoder, encoder_optimizer, deco
         input_variable, lengths, target_variable, mask, max_target_len = training_batch
 
         # Run a training iteration with batch
-        loss = train(input_variable, lengths, target_variable, mask, max_target_len, encoder,
-                     decoder, embedding, encoder_optimizer, decoder_optimizer, batch_size, clip)
+        loss = train(
+            input_variable,
+            lengths,
+            target_variable,
+            mask,
+            max_target_len,
+            encoder,
+            decoder,
+            embedding,
+            encoder_optimizer,
+            decoder_optimizer,
+            batch_size,
+            clip,
+        )
         print_loss += loss
 
         # Print progress
         if iteration % print_every == 0:
             print_loss_avg = print_loss / print_every
-            print("Iteration: {}; Percent complete: {:.1f}%; Average loss: {:.4f}".format(iteration, iteration / n_iteration * 100, print_loss_avg))
+            print(
+                "Iteration: {}; Percent complete: {:.1f}%; Average loss: {:.4f}".format(
+                    iteration, iteration / n_iteration * 100, print_loss_avg
+                )
+            )
             print_loss = 0
 
         # Save checkpoint
-        if (iteration % save_every == 0):
+        if iteration % save_every == 0:
             directory = os.path.join(save_dir, model_name, corpus_name)
             if not os.path.exists(directory):
                 os.makedirs(directory)
-            torch.save({
-                'iteration': iteration,
-                'en': encoder.state_dict(),
-                'de': decoder.state_dict(),
-                'en_opt': encoder_optimizer.state_dict(),
-                'de_opt': decoder_optimizer.state_dict(),
-                'loss': loss,
-                'voc_dict': voc.__dict__,
-                'embedding': embedding.state_dict()
-            }, os.path.join(directory, '{}_{}.tar'.format(iteration, 'checkpoint')))
+            torch.save(
+                {
+                    "iteration": iteration,
+                    "en": encoder.state_dict(),
+                    "de": decoder.state_dict(),
+                    "en_opt": encoder_optimizer.state_dict(),
+                    "de_opt": decoder_optimizer.state_dict(),
+                    "loss": loss,
+                    "voc_dict": voc.__dict__,
+                    "embedding": embedding.state_dict(),
+                },
+                os.path.join(directory, "{}_{}.tar".format(iteration, "checkpoint")),
+            )
 
 
 def main():
 
     # Configure models
-    model_name = 'cb_model'
-    attn_model = 'dot'
-    #attn_model = 'general'
-    #attn_model = 'concat'
+    model_name = "cb_model"
+    attn_model = "dot"
+    # attn_model = 'general'
+    # attn_model = 'concat'
     hidden_size = 500
     encoder_n_layers = 2
     decoder_n_layers = 2
@@ -262,8 +320,9 @@ def main():
     loadFilename = None
     checkpoint_iter = 4000
 
-    decoder, embedding, encoder = build_model(attn_model, decoder_n_layers, dropout,
-                                              encoder_n_layers, hidden_size)
+    decoder, embedding, encoder = build_model(
+        attn_model, decoder_n_layers, dropout, encoder_n_layers, hidden_size
+    )
 
     assert decoder.n_layers == decoder_n_layers
 
@@ -280,11 +339,15 @@ def main():
     encoder.train()
     decoder.train()
 
-    print('Building optimizers ...')
+    print("Building optimizers ...")
     encoder_optimizer = optim.Adam(encoder.parameters(), lr=learning_rate)
-    decoder_optimizer = optim.Adam(decoder.parameters(), lr=learning_rate * decoder_learning_ratio)
+    decoder_optimizer = optim.Adam(
+        decoder.parameters(), lr=learning_rate * decoder_learning_ratio
+    )
 
-    Checkpoint = namedtuple("Checkpoint","en de en_opt de_opt embedding voc_dict iteration")
+    Checkpoint = namedtuple(
+        "Checkpoint", "en de en_opt de_opt embedding voc_dict iteration"
+    )
 
     if loadFilename is not None:
         checkpoint = Checkpoint(**torch.load(loadFilename))
@@ -301,9 +364,24 @@ def main():
 
     optimizers_to_cuda(decoder_optimizer, encoder_optimizer)
 
-    trainIters(model_name, voc, pairs, encoder, decoder, encoder_optimizer, decoder_optimizer,
-               embedding, save_dir, n_iteration, batch_size,
-               print_every, save_every, clip, corpus_name, checkpoint)
+    trainIters(
+        model_name,
+        voc,
+        pairs,
+        encoder,
+        decoder,
+        encoder_optimizer,
+        decoder_optimizer,
+        embedding,
+        save_dir,
+        n_iteration,
+        batch_size,
+        print_every,
+        save_every,
+        clip,
+        corpus_name,
+        checkpoint,
+    )
 
 
 def optimizers_to_cuda(decoder_optimizer, encoder_optimizer):
@@ -322,10 +400,11 @@ def build_model(attn_model, decoder_n_layers, dropout, encoder_n_layers, hidden_
     embedding = nn.Embedding(voc.num_words, hidden_size)
     # Initialize encoder & decoder models
     encoder = EncoderRNN(hidden_size, embedding, encoder_n_layers, dropout)
-    decoder = LuongAttnDecoderRNN(attn_model, embedding, hidden_size, voc.num_words,
-                                  decoder_n_layers, dropout)
+    decoder = LuongAttnDecoderRNN(
+        attn_model, embedding, hidden_size, voc.num_words, decoder_n_layers, dropout
+    )
     return decoder, embedding, encoder
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
