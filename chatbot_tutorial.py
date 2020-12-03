@@ -13,6 +13,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from collections import namedtuple
+
 import torch
 import torch.nn as nn
 from torch import optim
@@ -21,7 +23,7 @@ import os
 import itertools
 
 from load_preprocess_data import write_formatted_data, loadPrepareData, trimRareWords, \
-    PAD_token, EOS_token, MAX_LENGTH, SOS_token, load_checkpoint
+    PAD_token, EOS_token, MAX_LENGTH, SOS_token
 from models import EncoderRNN, LuongAttnDecoderRNN
 
 USE_CUDA = torch.cuda.is_available()
@@ -201,7 +203,7 @@ def trainIters(model_name, voc, pairs, encoder, decoder, encoder_optimizer, deco
     start_iteration = 1
     print_loss = 0
     if loadFilename:
-        start_iteration = checkpoint['iteration'] + 1
+        start_iteration = checkpoint.iteration + 1 #TODO(tilo): WTF!
 
     # Training loop
     print("Training...")
@@ -328,15 +330,18 @@ print('Building optimizers ...')
 encoder_optimizer = optim.Adam(encoder.parameters(), lr=learning_rate)
 decoder_optimizer = optim.Adam(decoder.parameters(), lr=learning_rate * decoder_learning_ratio)
 
-if loadFilename is not None:
-    encoder_sd, decoder_sd, encoder_optimizer_sd, decoder_optimizer_sd, embedding_sd, voc = load_checkpoint(
-        loadFilename)
-    encoder.load_state_dict(encoder_sd)
-    decoder.load_state_dict(decoder_sd)
-    embedding.load_state_dict(embedding_sd)
+Checkpoint = namedtuple("Checkpoint","en de en_opt de_opt embedding voc_dict iteration")
 
-    encoder_optimizer.load_state_dict(encoder_optimizer_sd)
-    decoder_optimizer.load_state_dict(decoder_optimizer_sd)
+if loadFilename is not None:
+    checkpoint = Checkpoint(**torch.load(loadFilename))
+
+    encoder.load_state_dict(checkpoint.en)
+    decoder.load_state_dict(checkpoint.de)
+    embedding.load_state_dict(checkpoint.embedding)
+
+    encoder_optimizer.load_state_dict(checkpoint.en_opt)
+    decoder_optimizer.load_state_dict(checkpoint.de_opt)
+    voc.__dict__ = checkpoint.voc_dict
 
 # If you have cuda, configure cuda to call
 for state in encoder_optimizer.state.values():
