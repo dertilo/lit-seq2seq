@@ -49,6 +49,10 @@ import re
 # Splits each line of the file into a dictionary of fields
 import unicodedata
 
+import torch
+
+from chatbot_tutorial import voc
+
 
 def loadLines(fileName, fields):
     lines = {}
@@ -280,4 +284,14 @@ def trimRareWords(voc, pairs, MIN_COUNT):
     return keep_pairs
 
 
-
+def load_checkpoint(loadFilename):
+    checkpoint = torch.load(loadFilename)
+    # If loading a model trained on GPU to CPU
+    # checkpoint = torch.load(loadFilename, map_location=torch.device('cpu'))
+    encoder_sd = checkpoint['en']
+    decoder_sd = checkpoint['de']
+    encoder_optimizer_sd = checkpoint['en_opt']
+    decoder_optimizer_sd = checkpoint['de_opt']
+    embedding_sd = checkpoint['embedding']
+    voc.__dict__ = checkpoint['voc_dict']
+    return encoder_sd, decoder_sd, encoder_optimizer_sd, decoder_optimizer_sd, embedding_sd, voc
