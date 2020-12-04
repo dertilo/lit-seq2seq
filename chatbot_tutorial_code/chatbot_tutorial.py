@@ -36,21 +36,6 @@ from chatbot_tutorial_code.models import EncoderRNN, LuongAttnDecoderRNN
 USE_CUDA = torch.cuda.is_available()
 device = torch.device("cuda" if USE_CUDA else "cpu")
 
-corpus_name = "cornell movie-dialogs corpus"
-data_dir = os.environ.get("DATA_DIR", "data")
-corpus = os.path.join(data_dir, corpus_name)
-datafile = os.path.join(corpus, "formatted_movie_lines.txt")
-write_formatted_data(corpus, datafile)
-
-# Load/Assemble voc and pairs
-save_dir = os.path.join("data", "save")
-voc, pairs = loadPrepareData(corpus, corpus_name, datafile, save_dir)
-
-
-# Trim voc and pairs
-MIN_COUNT = 3  # Minimum word count threshold for trimming
-pairs = trimRareWords(voc, pairs, MIN_COUNT)
-
 
 ######################################################################
 # Prepare Data for Models
@@ -109,16 +94,16 @@ def batch2TrainData(voc, pair_batch):
     return inp, lengths, output, mask, max_target_len
 
 
-# Example for validation
-small_batch_size = 5
-batches = batch2TrainData(voc, [random.choice(pairs) for _ in range(small_batch_size)])
-input_variable, lengths, target_variable, mask, max_target_len = batches
-
-print("input_variable:", input_variable)
-print("lengths:", lengths)
-print("target_variable:", target_variable)
-print("mask:", mask)
-print("max_target_len:", max_target_len)
+# # Example for validation
+# small_batch_size = 5
+# batches = batch2TrainData(voc, [random.choice(pairs) for _ in range(small_batch_size)])
+# input_variable, lengths, target_variable, mask, max_target_len = batches
+#
+# print("input_variable:", input_variable)
+# print("lengths:", lengths)
+# print("target_variable:", target_variable)
+# print("mask:", mask)
+# print("max_target_len:", max_target_len)
 
 
 def maskNLLLoss(inp, target, mask):
@@ -317,6 +302,12 @@ def trainIters(
 
 def main():
 
+    corpus_name = "cornell movie-dialogs corpus"
+    data_dir = os.environ.get("DATA_DIR", "data")
+    save_dir = os.path.join(data_dir, "save")
+
+    pairs, voc = build_pairs_voc(corpus_name, data_dir)
+
     # Configure models
     model_name = "cb_model"
     attn_model = "dot"
@@ -331,7 +322,7 @@ def main():
     # Set checkpoint to load from; set to None if starting from scratch
     loadFilename = None
 
-    decoder, embedding, encoder = build_model(
+    decoder, embedding, encoder = build_model(voc,
         attn_model, decoder_n_layers, dropout, encoder_n_layers, hidden_size
     )
 
@@ -393,6 +384,19 @@ def main():
     )
 
 
+def build_pairs_voc(corpus_name, data_dir):
+    corpus = os.path.join(data_dir, corpus_name)
+    datafile = os.path.join(corpus, "formatted_movie_lines.txt")
+    if not os.path.isfile(datafile):
+        write_formatted_data(corpus, datafile)
+    # Load/Assemble voc and pairs
+    voc, pairs = loadPrepareData(corpus_name, datafile)
+    # Trim voc and pairs
+    MIN_COUNT = 3  # Minimum word count threshold for trimming
+    pairs = trimRareWords(voc, pairs, MIN_COUNT)
+    return pairs, voc
+
+
 def optimizers_to_cuda(decoder_optimizer, encoder_optimizer):
     for state in encoder_optimizer.state.values():
         for k, v in state.items():
@@ -404,7 +408,7 @@ def optimizers_to_cuda(decoder_optimizer, encoder_optimizer):
                 state[k] = v.cuda()
 
 
-def build_model(attn_model, decoder_n_layers, dropout, encoder_n_layers, hidden_size):
+def build_model(voc,attn_model, decoder_n_layers, dropout, encoder_n_layers, hidden_size):
     # Initialize word embeddings
     embedding = nn.Embedding(voc.num_words, hidden_size)
     # Initialize encoder & decoder models
