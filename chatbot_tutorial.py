@@ -262,13 +262,13 @@ def trainIters(
     start_iteration = 1
     print_loss = 0
     if checkpoint:
-        start_iteration = checkpoint.iteration + 1  # TODO(tilo): WTF!
+        start_iteration = checkpoint.iteration + 1
 
     for iteration in range(start_iteration, n_iteration + 1):
         training_batch = training_batches[iteration - 1]
         # Extract fields from batch
         input_variable, lengths, target_variable, mask, max_target_len = training_batch
-
+        batch_size = input_variable.shape[1]
         # Run a training iteration with batch
         loss = train(
             input_variable,
