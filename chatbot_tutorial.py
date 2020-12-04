@@ -155,24 +155,56 @@ def train(
     # Lengths for rnn packing should always be on the cpu
     lengths = lengths.to("cpu")
 
+    loss, n_totals, print_losses = calc_loss(
+        batch_size,
+        encoder,
+        decoder,
+        input_variable,
+        lengths,
+        mask,
+        max_target_len,
+        target_variable,
+        teacher_forcing_ratio,
+    )
+
+    # Perform backpropatation
+    loss.backward()
+
+    # Clip gradients: gradients are modified in place
+    _ = nn.utils.clip_grad_norm_(encoder.parameters(), clip)
+    _ = nn.utils.clip_grad_norm_(decoder.parameters(), clip)
+
+    # Adjust model weights
+    encoder_optimizer.step()
+    decoder_optimizer.step()
+
+    return sum(print_losses) / n_totals
+
+
+def calc_loss(
+    batch_size,
+    encoder,
+    decoder,
+    input_variable,
+    lengths,
+    mask,
+    max_target_len,
+    target_variable,
+    teacher_forcing_ratio,
+):
     # Initialize variables
     loss = 0
     print_losses = []
     n_totals = 0
-
     # Forward pass through encoder
     encoder_outputs, encoder_hidden = encoder(input_variable, lengths)
-
     # Create initial decoder input (start with SOS tokens for each sentence)
     decoder_input = torch.LongTensor([[SOS_token for _ in range(batch_size)]])
     decoder_input = decoder_input.to(device)
-
     # Set initial decoder hidden state to the encoder's final hidden state
     decoder_hidden = encoder_hidden[: decoder.n_layers]
-
     # Determine if we are using teacher forcing this iteration
     use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
-
     # Forward batch of sequences through decoder one time step at a time
     if use_teacher_forcing:
         for t in range(max_target_len):
@@ -200,19 +232,7 @@ def train(
             loss += mask_loss
             print_losses.append(mask_loss.item() * nTotal)
             n_totals += nTotal
-
-    # Perform backpropatation
-    loss.backward()
-
-    # Clip gradients: gradients are modified in place
-    _ = nn.utils.clip_grad_norm_(encoder.parameters(), clip)
-    _ = nn.utils.clip_grad_norm_(decoder.parameters(), clip)
-
-    # Adjust model weights
-    encoder_optimizer.step()
-    decoder_optimizer.step()
-
-    return sum(print_losses) / n_totals
+    return loss, n_totals, print_losses
 
 
 def trainIters(
@@ -314,8 +334,6 @@ def main():
     decoder, embedding, encoder = build_model(
         attn_model, decoder_n_layers, dropout, encoder_n_layers, hidden_size
     )
-
-    assert decoder.n_layers == decoder_n_layers
 
     encoder = encoder.to(device)
     decoder = decoder.to(device)
