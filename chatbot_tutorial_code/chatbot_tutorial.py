@@ -14,6 +14,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from collections import namedtuple
+from typing import NamedTuple
 
 import torch
 import torch.nn as nn
@@ -304,6 +305,24 @@ def build_train_batches(batch_size, n_iteration, pairs, voc):
     ]
     return training_batches
 
+class Params(NamedTuple):
+    model_name:str = "cb_model"
+    attn_model:str = "dot"
+    # attn_model = 'general'
+    # attn_model = 'concat'
+    hidden_size:int = 500
+    encoder_n_layers:int = 2
+    decoder_n_layers:int = 2
+    dropout:float = 0.1
+    batch_size:int = 64
+
+    clip:float = 50.0
+    learning_rate:float = 0.0001
+    decoder_learning_ratio:float = 5.0
+    n_iteration:int = 400
+    print_every:int = 1
+    save_every:int = 500
+
 
 def main():
 
@@ -313,42 +332,26 @@ def main():
 
     pairs, voc = build_pairs_voc(corpus_name, data_dir)
 
-    # Configure models
-    model_name = "cb_model"
-    attn_model = "dot"
-    # attn_model = 'general'
-    # attn_model = 'concat'
-    hidden_size = 500
-    encoder_n_layers = 2
-    decoder_n_layers = 2
-    dropout = 0.1
-    batch_size = 64
-
+    p = Params()
     # Set checkpoint to load from; set to None if starting from scratch
     loadFilename = None
     num_words = voc.num_words
 
     decoder, embedding, encoder = build_model(num_words,
-        attn_model, decoder_n_layers, dropout, encoder_n_layers, hidden_size
+        p.attn_model, p.decoder_n_layers, p.dropout, p.encoder_n_layers, p.hidden_size
     )
 
     encoder = encoder.to(device)
     decoder = decoder.to(device)
 
-    clip = 50.0
-    learning_rate = 0.0001
-    decoder_learning_ratio = 5.0
-    n_iteration = 400
-    print_every = 1
-    save_every = 500
 
     encoder.train()
     decoder.train()
 
     print("Building optimizers ...")
-    encoder_optimizer = optim.Adam(encoder.parameters(), lr=learning_rate)
+    encoder_optimizer = optim.Adam(encoder.parameters(), lr=p.learning_rate)
     decoder_optimizer = optim.Adam(
-        decoder.parameters(), lr=learning_rate * decoder_learning_ratio
+        decoder.parameters(), lr=p.learning_rate * p.decoder_learning_ratio
     )
 
     Checkpoint = namedtuple(
@@ -371,7 +374,7 @@ def main():
     optimizers_to_cuda(decoder_optimizer, encoder_optimizer)
 
     trainIters(
-        model_name,
+        p.model_name,
         voc,
         pairs,
         encoder,
@@ -380,11 +383,11 @@ def main():
         decoder_optimizer,
         embedding,
         save_dir,
-        n_iteration,
-        batch_size,
-        print_every,
-        save_every,
-        clip,
+        p.n_iteration,
+        p.batch_size,
+        p.print_every,
+        p.save_every,
+        p.clip,
         corpus_name,
         checkpoint,
     )

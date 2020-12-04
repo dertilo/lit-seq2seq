@@ -53,18 +53,18 @@ class LitSeq2Seq(LightningModule):
             target_variable,
             self.hparams.teacher_forcing_ratio,
         )
-        loss.backward()
-
-        # Clip gradients: gradients are modified in place
-        _ = nn.utils.clip_grad_norm_(self.encoder.parameters(), self.hparams.clip)
-        _ = nn.utils.clip_grad_norm_(self.decoder.parameters(), self.hparams.clip)
-
+        # loss.backward()
         # Adjust model weights
+        self.manual_backward(loss,encoder_optimizer,retain_graph = True)
+        self.manual_backward(loss,decoder_optimizer)
+
         encoder_optimizer.step()
         decoder_optimizer.step()
 
-        log_dict = {'train_loss': loss}
-        return {'loss': loss, 'log': log_dict, 'progress_bar': log_dict}
+        self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True)
+        masked_loss = sum(print_losses) / n_totals
+        self.log('masked_train_loss', masked_loss, on_step=True, on_epoch=True, prog_bar=True)
+        return loss
 
 
     def validation_step(self, batch):
@@ -82,7 +82,10 @@ class LitSeq2Seq(LightningModule):
             target_variable,
             self.hparams.teacher_forcing_ratio,
         )
-        return {'val_loss': loss}
+        self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True)
+        masked_loss = sum(print_losses) / n_totals
+        self.log('masked_val_loss', masked_loss, on_step=True, on_epoch=True, prog_bar=True)
+
 
     def configure_optimizers(self):
         lr = self.hparams.learning_rate
