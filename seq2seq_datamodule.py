@@ -16,7 +16,7 @@ class Seq2SeqDataModule(LightningDataModule):
         self,
         corpus_name="cornell movie-dialogs corpus",
         data_dir=os.environ.get("DATA_DIR", "data"),
-        num_workers: int = 16,
+        num_workers: int = 0,
         normalize: bool = False,
         seed: int = 42,
         batch_size=32,
@@ -48,11 +48,13 @@ class Seq2SeqDataModule(LightningDataModule):
 
     def train_dataloader(self):
         pairs,voc = load_and_trim(self.corpus_name,self.datafile)
-        training_batches = build_train_batches(self.batch_size, self.n_iteration, pairs, voc)
 
+        def collate_fn(samples):
+            return batch2TrainData(voc,samples)
 
         loader = DataLoader(
-            training_batches,
+            pairs,
+            collate_fn=collate_fn,
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,

@@ -35,7 +35,8 @@ class LitSeq2Seq(LightningModule):
             attn_model, decoder_n_layers, dropout, encoder_n_layers, hidden_size
         )
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, batch_idx,optimizer_idx):
+        assert optimizer_idx == 0 # for some stupid reason pytorch-lightning wants this optimizer_idx in manual optimization mode
         encoder_optimizer, decoder_optimizer = self.optimizers()
 
         input_variable, lengths, target_variable, mask, max_target_len = batch
@@ -62,6 +63,10 @@ class LitSeq2Seq(LightningModule):
         encoder_optimizer.step()
         decoder_optimizer.step()
 
+        log_dict = {'train_loss': loss}
+        return {'loss': loss, 'log': log_dict, 'progress_bar': log_dict}
+
+
     def validation_step(self, batch):
         input_variable, lengths, target_variable, mask, max_target_len = batch
         batch_size = input_variable.shape[1]
@@ -77,7 +82,7 @@ class LitSeq2Seq(LightningModule):
             target_variable,
             self.hparams.teacher_forcing_ratio,
         )
-        return loss
+        return {'val_loss': loss}
 
     def configure_optimizers(self):
         lr = self.hparams.learning_rate
