@@ -2,7 +2,7 @@ import torch
 from torch import nn as nn
 from torch.nn import functional as F
 
-from load_preprocess_data import SOS_token
+from chatbot_tutorial_code.load_preprocess_data import SOS_token
 
 
 class EncoderRNN(nn.Module):

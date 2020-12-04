@@ -1,10 +1,10 @@
 import torch
 
-from chatbot_tutorial import indexesFromSentence, device
-from models import GreedySearchDecoder
+from chatbot_tutorial_code.chatbot_tutorial import indexesFromSentence, device
+from chatbot_tutorial_code.models import GreedySearchDecoder
 
 # Set dropout layers to eval mode
-from load_preprocess_data import MAX_LENGTH, normalizeString
+from chatbot_tutorial_code.load_preprocess_data import MAX_LENGTH, normalizeString
 
 
 def evaluate(encoder, decoder, searcher, voc, sentence, max_length=MAX_LENGTH):

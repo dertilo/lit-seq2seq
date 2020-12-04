@@ -22,7 +22,7 @@ import random
 import os
 import itertools
 
-from load_preprocess_data import (
+from chatbot_tutorial_code.load_preprocess_data import (
     write_formatted_data,
     loadPrepareData,
     trimRareWords,
@@ -31,7 +31,7 @@ from load_preprocess_data import (
     MAX_LENGTH,
     SOS_token,
 )
-from models import EncoderRNN, LuongAttnDecoderRNN
+from chatbot_tutorial_code.models import EncoderRNN, LuongAttnDecoderRNN
 
 USE_CUDA = torch.cuda.is_available()
 device = torch.device("cuda" if USE_CUDA else "cpu")
