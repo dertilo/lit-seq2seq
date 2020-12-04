@@ -239,10 +239,7 @@ def trainIters(
     checkpoint=None,
 ):
 
-    training_batches = [
-        batch2TrainData(voc, [random.choice(pairs) for _ in range(batch_size)])
-        for _ in range(n_iteration)
-    ]
+    training_batches = build_train_batches(batch_size, n_iteration, pairs, voc)
 
     start_iteration = 1
     print_loss = 0
@@ -300,6 +297,14 @@ def trainIters(
             )
 
 
+def build_train_batches(batch_size, n_iteration, pairs, voc):
+    training_batches = [
+        batch2TrainData(voc, [random.choice(pairs) for _ in range(batch_size)])
+        for _ in range(n_iteration)
+    ]
+    return training_batches
+
+
 def main():
 
     corpus_name = "cornell movie-dialogs corpus"
@@ -321,8 +326,9 @@ def main():
 
     # Set checkpoint to load from; set to None if starting from scratch
     loadFilename = None
+    num_words = voc.num_words
 
-    decoder, embedding, encoder = build_model(voc,
+    decoder, embedding, encoder = build_model(num_words,
         attn_model, decoder_n_layers, dropout, encoder_n_layers, hidden_size
     )
 
@@ -389,6 +395,11 @@ def build_pairs_voc(corpus_name, data_dir):
     datafile = os.path.join(corpus, "formatted_movie_lines.txt")
     if not os.path.isfile(datafile):
         write_formatted_data(corpus, datafile)
+    pairs, voc = load_and_trim(corpus_name, datafile)
+    return pairs, voc
+
+
+def load_and_trim(corpus_name, datafile):
     # Load/Assemble voc and pairs
     voc, pairs = loadPrepareData(corpus_name, datafile)
     # Trim voc and pairs
@@ -408,13 +419,13 @@ def optimizers_to_cuda(decoder_optimizer, encoder_optimizer):
                 state[k] = v.cuda()
 
 
-def build_model(voc,attn_model, decoder_n_layers, dropout, encoder_n_layers, hidden_size):
+def build_model(num_words,attn_model, decoder_n_layers, dropout, encoder_n_layers, hidden_size):
     # Initialize word embeddings
-    embedding = nn.Embedding(voc.num_words, hidden_size)
+    embedding = nn.Embedding(num_words, hidden_size)
     # Initialize encoder & decoder models
     encoder = EncoderRNN(hidden_size, embedding, encoder_n_layers, dropout)
     decoder = LuongAttnDecoderRNN(
-        attn_model, embedding, hidden_size, voc.num_words, decoder_n_layers, dropout
+        attn_model, embedding, hidden_size, num_words, decoder_n_layers, dropout
     )
     return decoder, embedding, encoder
 
